@@ -1,0 +1,57 @@
+---
+- name: K8s OS Preparation
+  hosts: all
+  become: true
+  tasks:
+    - name: Disable Swap
+      command: swapoff -a
+      when: ansible_swaptotal_mb > 0
+
+    - name: Disable Swap Permanently
+      replace:
+        path: /etc/fstab
+        regexp: '^([^#].*?\sswap\s+sw\s+.*)$'
+        replace: '# \1'
+
+    - name: Ensure required kernel modules are loaded
+      modprobe:
+        name: "{{ item }}"
+        state: present
+      loop:
+        - br_netfilter
+        - overlay
+    
+    - name: Persist kernel module configuration
+      copy:
+        dest: /etc/modules-load.d/k8s.conf
+        content: |
+          br_netfilter
+          overlay
+
+    - name: Set sysctl params
+      sysctl:
+        name: "{{ item.name }}"
+        value: "{{ item.value }}"
+        state: present
+        sysctl_set: yes
+        reload: yes
+      loop:
+        - { name: 'net.bridge.bridge-nf-call-iptables', value: 1 }
+        - { name: 'net.bridge.bridge-nf-call-ip6tables', value: 1 }
+        - { name: 'net.ipv4.ip_forward', value: 1 }
+
+    - name: Install required packages
+      apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - containerd
+        state: present
+        update_cache: yes
+    
+    - name: Ensure containerd service is enabled and started
+      systemd:
+        name: containerd
+        enabled: yes
+        state: present

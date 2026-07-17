@@ -45,3 +45,5 @@ terraform.rc
 
 postgres.tfbackend
 .terraform.lock.hcl
+
+inventory.ini
