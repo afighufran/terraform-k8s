@@ -1,0 +1,5 @@
+[control-plane]
+your_ip
+
+[worker-plane]
+your_ip
